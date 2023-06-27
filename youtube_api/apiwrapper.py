@@ -1,4 +1,4 @@
-from .youtube_api import *
+from .youtube_api_procedural import *
 from .credentials import *
 
 class YoutubeAPI:
@@ -23,30 +23,37 @@ class YoutubeAPI:
         item['channelId'] = info['snippet']['channelId']
         return item
 
-    def requestVideos(self, video_ids, maxResults:int = 5):
-        for video_id in video_ids:
-            request = self.youtube.videos().list(
+    def requestVideos(self, video_ids, requestSize:int = 30):
+        def request(ids):
+            req = self.youtube.videos().list(
                 part='snippet,contentDetails',
-                id=video_id
+                maxResults=len(ids),
+                id=','.join(ids)
             )
+            res = req.execute()
+            res_items = res['items']
+            return res_items
+        
+        for i in range(0, len(video_ids), requestSize):
+            ids = video_ids[i:i + requestSize]
 
-            response = request.execute()
-            for item in response["items"]:
-                yield self.__toItems(item, id=video_id)
+            items = request(ids)
+            for i, item in enumerate(items):
+                yield self.__toItems(item, id=ids[i])
 
-    def requestPlaylistItems(self, playlist:str, maxResults:int = 5):
+    def requestPlaylistItems(self, playlist:str, requestSize:int = 30):
         def request(nextPageToken=None):
             if nextPageToken is None:
                 req = self.youtube.playlistItems().list(
                     part='snippet,contentDetails',
                     playlistId=playlist,
-                    maxResults=maxResults
+                    maxResults=requestSize
                 )
             else:
                 req = self.youtube.playlistItems().list(
                     part='snippet,contentDetails',
                     playlistId=playlist,
-                    maxResults=maxResults,
+                    maxResults=requestSize,
                     pageToken=nextPageToken
                 )
             res = req.execute()
@@ -61,9 +68,11 @@ class YoutubeAPI:
                 yield self.__toItems(item, duration="-")
             if nextPageToken is None:
                 break
-    
-    def requestInsertToPlaylist(self, playlist:str, video_ids):
-        for video_id in video_ids:
+
+    def requestInsertToPlaylist(self, playlist:str, video_ids, requestSize:int = 30):
+        for i in range(0, len(video_ids), requestSize):
+            ids = video_ids[i:i + requestSize]
+
             request = self.youtube.playlistItems().insert(
                 part='snippet',
                 body={
@@ -71,7 +80,7 @@ class YoutubeAPI:
                         'playlistId': playlist,
                         'resourceId': {
                             'kind': 'youtube#video',
-                            'videoId': video_id
+                            'videoId': ','.join(ids)
                         }
                     }
                 }

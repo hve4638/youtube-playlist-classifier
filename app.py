@@ -1,16 +1,54 @@
 #!/usr/bin/env python3
-import ytplorderer
-import plfilter
+import re
 import csv
+import youtubepl_classifier as classifier
+from youtube_api import youtube_duration
+from Map import Map
+from playlistdb import *
+from datetime import *
+
 
 PLAYLIST_SHORT = None
-PLAYLIST_LONG = "PLUE_U19elmjTA5dtEX48ei8WdQysm05uq"
-PLAYLIST_UNCLASSICIFICATION = "PLUE_U19elmjRCx5QyfO67QZlVVBjjjvq6"
+PLAYLIST_LONG = None
+PLAYLIST_UNCLASSICIFICATION = None
 logger = None
 logwriter = None
 
+def openlogger():
+    global logger, logwriter
+    now = datetime.now()
+    formatted = now.strftime("%y%m%d_%H%M%S")
+    logger = open(f"log/{formatted}.csv", "w", encoding="utf-8")
+    logwriter = csv.writer(logger)
+
+def closelogger():
+    logger.close()
+
+def initFilter(map:Map):
+    global PLAYLIST_SHORT, PLAYLIST_LONG, PLAYLIST_UNCLASSICIFICATION
+    PLAYLIST_SHORT = map["짧"]
+    PLAYLIST_LONG = map["긴거"]
+    PLAYLIST_UNCLASSICIFICATION = map["미분류"]
+
+def filterMapGener(map:Map):
+    def filterMap(item, verbose=False):
+        channelId = item["channelId"]
+        if channelId in map:
+            return map[channelId]
+        
+    return filterMap
+
 def filterDuration(item, verbose=False):
-    return None
+    hours, minutes, seconds = youtube_duration(item["duration"])
+    full_minutes = ((hours*60) + minutes)
+    full_sec = full_minutes * 60 + seconds
+
+    if full_minutes >= 40:
+        return PLAYLIST_LONG
+    elif full_minutes <= 3:
+        return PLAYLIST_SHORT
+    else:
+        return None
     
 def filterUnclassification(item, verbose=False):
     title = item["title"]
@@ -24,24 +62,23 @@ def filterUnclassification(item, verbose=False):
     return PLAYLIST_UNCLASSICIFICATION
 
 if __name__ == "__main__":
-    plfilter.init()
-    
-    playlist = ""
+    initFilter(Map("data/playlist.csv"))
+
     filters = [
-        plfilter.yt_mapfilter,
+        filterMapGener(Map("data/playlistfilter.csv")),
         filterDuration,
         filterUnclassification,
     ]
 
-    target = "PLUE_U19elmjTld6LlQnYF6nL2ewNz_XcK"
-
-    logger = open("log.txt", "a", encoding="utf-8")
-    logwriter = csv.writer(logger)
-
-    #print(plfilter.filtermap)
-
+    target = "PLUE_U19elmjRMznlJ3Pm-DTAh9jKGXsZn"
+    openlogger()
     try:
-        ytplorderer.init()
-        ytplorderer.run(target, filters, verbose=True)
+        classifier.init()
+        #classifier.runStore(target, "watchlaterDB.csv")
+        #classifier.runClassifierMock(filters=filters, importfile="data/watchlaterDB.csv")
+        
+        classifier.runClassifier(filters=filters, importfile="data/watchlaterDB.csv")
+
+        #classifier.runClassifierMock(filters=filters, importfile="data/watchlaterDB.csv")
     finally:
-        logger.close()
+        closelogger()

@@ -2,11 +2,12 @@ import os
 import csv
 
 class Map:
-    def __init__(self, filename):
+    def __init__(self, filename, newfile=False):
         self.data = {}
         self.filename = filename
+        self.defGetCaller = lambda x : ""
         
-        if os.path.exists(self.filename):
+        if (not newfile) and os.path.exists(self.filename):
             with open(self.filename, "r") as file:
                 reader = csv.reader(file)
                 for row in reader:
@@ -26,8 +27,11 @@ class Map:
         if key in self.data:
             return self.data[key]
         else:
-            return ""
+            return self.defGetCaller(key)
 
     def __setitem__(self, key, value):
         self.data[key] = value
+
+    def __contains__(self, value):
+        return value in self.data
 

@@ -1,4 +1,7 @@
 __pycache__/
 auth/
 data/
+log/
+mock/
 log.txt
+test.py
