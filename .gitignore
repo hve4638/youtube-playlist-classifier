@@ -1,7 +1,11 @@
 __pycache__/
-auth/
+auth/*
 data/
 log/
+classified/
+mockclassified/
+testclassified/
 mock/
 log.txt
 test.py
+*filtermaker*

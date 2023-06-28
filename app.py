@@ -1,84 +1,34 @@
 #!/usr/bin/env python3
-import re
-import csv
-import youtubepl_classifier as classifier
-from youtube_api import youtube_duration
-from Map import Map
-from playlistdb import *
+from youtube_api import *
 from datetime import *
+import filters as Filters
 
-
-PLAYLIST_SHORT = None
-PLAYLIST_LONG = None
-PLAYLIST_UNCLASSICIFICATION = None
-logger = None
-logwriter = None
-
-def openlogger():
-    global logger, logwriter
-    now = datetime.now()
-    formatted = now.strftime("%y%m%d_%H%M%S")
-    logger = open(f"log/{formatted}.csv", "w", encoding="utf-8")
-    logwriter = csv.writer(logger)
-
-def closelogger():
-    logger.close()
-
-def initFilter(map:Map):
-    global PLAYLIST_SHORT, PLAYLIST_LONG, PLAYLIST_UNCLASSICIFICATION
-    PLAYLIST_SHORT = map["짧"]
-    PLAYLIST_LONG = map["긴거"]
-    PLAYLIST_UNCLASSICIFICATION = map["미분류"]
-
-def filterMapGener(map:Map):
-    def filterMap(item, verbose=False):
-        channelId = item["channelId"]
-        if channelId in map:
-            return map[channelId]
-        
-    return filterMap
-
-def filterDuration(item, verbose=False):
-    hours, minutes, seconds = youtube_duration(item["duration"])
-    full_minutes = ((hours*60) + minutes)
-    full_sec = full_minutes * 60 + seconds
-
-    if full_minutes >= 40:
-        return PLAYLIST_LONG
-    elif full_minutes <= 3:
-        return PLAYLIST_SHORT
-    else:
-        return None
-    
-def filterUnclassification(item, verbose=False):
-    title = item["title"]
-    id = item["id"]
-    channelTitle = item["channelTitle"]
-    channelId = item["channelId"]
-
-    logger.write("")
-    emsg = "미분류됨"
-    logwriter.writerow([emsg, title, channelTitle, id, channelId])
-    return PLAYLIST_UNCLASSICIFICATION
+CLIENT_SECRET: str = "auth/client_secret.json"
+TOKEN: str = "auth/tokens.json"
 
 if __name__ == "__main__":
-    initFilter(Map("data/playlist.csv"))
+    Filters.initFilter(Map("data/playlist.csv"))
 
-    filters = [
-        filterMapGener(Map("data/playlistfilter.csv")),
-        filterDuration,
-        filterUnclassification,
+    classify_filters = [
+        Filters.filterMapGener(Map("data/playlistfilter.csv")),
+        Filters.filterDuration,
+        Filters.filterUnclassification,
     ]
 
-    target = "PLUE_U19elmjRMznlJ3Pm-DTAh9jKGXsZn"
-    openlogger()
+    youtube = YoutubeAPI()
+    youtube.build(CLIENT_SECRET, TOKEN)
+    
+    classifier = PlaylistClassifier()
+    classifier.setAPI(youtube)
+    Filters.openlogger()
     try:
-        classifier.init()
-        #classifier.runStore(target, "watchlaterDB.csv")
-        #classifier.runClassifierMock(filters=filters, importfile="data/watchlaterDB.csv")
-        
-        classifier.runClassifier(filters=filters, importfile="data/watchlaterDB.csv")
+        #classifier.removeDirFile(dir="classified", verbose=True)
 
-        #classifier.runClassifierMock(filters=filters, importfile="data/watchlaterDB.csv")
+        #classifier.classify(filters=classify_filters, import_dbpath="data/watchlaterDB.csv", exportdir="classified")
+        
+        # classifier.mockInsertClassified(importdir="classified", verbose=True)
+        
+        # classifier.requestInsertClassified(importdir="classified", verbose=True)
+        pass
     finally:
-        closelogger()
+        Filters.closelogger()

@@ -69,20 +69,48 @@ class YoutubeAPI:
             if nextPageToken is None:
                 break
 
-    def requestInsertToPlaylist(self, playlist:str, video_ids, requestSize:int = 30):
-        for i in range(0, len(video_ids), requestSize):
-            ids = video_ids[i:i + requestSize]
-
-            request = self.youtube.playlistItems().insert(
+    def requestInsertPlaylistItem(self, playlist:str, video_ids, verbose:bool=False):
+        def request(id):
+            req = self.youtube.playlistItems().insert(
                 part='snippet',
                 body={
                     'snippet': {
                         'playlistId': playlist,
                         'resourceId': {
                             'kind': 'youtube#video',
-                            'videoId': ','.join(ids)
+                            'videoId': id
                         }
                     }
                 }
             )
-            response = request.execute()
+            req.execute()
+        
+        totalCount = len(video_ids)
+        index = 0
+        try:
+            for i in range(0, totalCount):
+                index = i
+                request(video_ids[i])
+        except HttpError as ex:
+            return False, video_ids[:index], video_ids[index:], ex
+        
+        return True, video_ids[:], [], None
+    
+    def requestInsertToPlaylist(self, playlist:str, video_ids, requestSize:int = 30):
+        print("Deprecated")
+        self.requestInsertPlaylistItem(playlist, video_ids, requestSize = 30)
+    
+    def mockInsertPlaylistItem(self, playlist:str, video_ids, verbose:bool=False):
+        def request(id):
+            print(f"MockInsert : '{id}' -> '{playlist}'")
+        
+        totalCount = len(video_ids)
+        index = 0
+        try:
+            for i in range(0, totalCount):
+                index = i
+                request(video_ids[i])
+        except HttpError as ex:
+            return False, video_ids[:index], video_ids[index:], ex
+        
+        return True, video_ids[:], [], None
