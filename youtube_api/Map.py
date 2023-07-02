@@ -13,7 +13,7 @@ class Map:
                 for row in reader:
                     key, value = row
                     self.data[key] = value
-    
+
     def clear(self):
         self.data = {}
 

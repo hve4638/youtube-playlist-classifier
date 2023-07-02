@@ -23,6 +23,18 @@ class YoutubeAPI:
         item['channelId'] = info['snippet']['channelId']
         return item
 
+    def requestPlaylist(self, playlist:str):
+        req = self.youtube.playlists().list(
+            part='snippet',
+            id=playlist
+        )
+        res = req.execute()
+        
+        if not res['items']:
+            return None
+        else:
+            return res['items'][0]['snippet']
+
     def requestVideos(self, video_ids, requestSize:int = 30):
         def request(ids):
             req = self.youtube.videos().list(

@@ -1,13 +1,12 @@
 import re
 import csv
 import os
+from .filter_const import *
 from .Map import *
 from .youtube_api import *
 from .playlist_db import *
 
 CHANNEL_FILE: str = "data/channels.csv"
-CLIENT_SECRET_KEY: str = "auth/client_secret.json"
-TOKEN: str = "auth/tokens.json"
 
 def getcondprint(cond:bool):
     return lambda s : print(s) if cond else None
@@ -15,17 +14,13 @@ def getcondprint(cond:bool):
 class PlaylistClassifier:
     db_header = "title,channelTitle,duration,id,channelId".split(",")
     
-    def __init__(self):
-        self.youtube = None
+    def __init__(self, youtube = None):
+        self.youtube = youtube
         self.lastitem = {}
 
     def setAPI(self, youtube:YoutubeAPI):
         self.youtube = youtube
         pass
-
-    def build(self):
-        self.youtube = YoutubeAPI()
-        self.youtube.build(CLIENT_SECRET_KEY, TOKEN)
 
     def requestPlaylistItems(self, playlist:str, exportfile:str, shared:dict = None):
         map = Map(CHANNEL_FILE)
@@ -34,7 +29,7 @@ class PlaylistClassifier:
         channelTitle: str = "None"
 
         shared["count"] = 0
-        shared["lastItem"] = item
+        shared["lastItem"] = {}
         
         db = PlaylistDB()
         db.load(exportfile)
@@ -49,7 +44,10 @@ class PlaylistClassifier:
                 channelId = item["channelId"]
                 channelTitle = item["channelTitle"]
                 
-                db.add(item)
+                try:
+                    db.add(item)
+                except DuplicationException:
+                    pass
                 map[channelTitle] = channelId
         except HttpError as ex:
             lastitem = shared["lastItem"]
@@ -79,14 +77,28 @@ class PlaylistClassifier:
             playlist = None
             for filter in filters:
                 playlist = filter(item)
-                if playlist is not None:
+
+                if playlist is FILTER_PASS:
+                    continue
+                elif playlist is FILTER_DROP:
+                    break
+                elif playlist is None:
+                    continue
+                else:
                     break
             
-            
-            if playlist is not None:
-                classified_path = f"{exportdir}/{playlist}.csv"
-            else:
+            noclassify = False
+            if playlist is FILTER_PASS:
+                noclassify = True
+            elif playlist is None:
+                noclassify = True
+            elif playlist is FILTER_DROP:
+                noclassify = True
+
+            if noclassify:
                 classified_path = f"{exportdir}/__NoClassify__.csv"
+            else:
+                classified_path = f"{exportdir}/{playlist}.csv"
 
             if classified_path not in classifieds:
                 playlistDB = PlaylistDB()
@@ -103,6 +115,7 @@ class PlaylistClassifier:
     
     def requestInsertClassified(self, importdir:str, silent:bool=False, verbose:bool=False):
         re_csv = re.compile("(.*)[.]csv")
+        nvprint = getcondprint(not verbose)
         vprint = getcondprint(verbose)
         sprint = getcondprint(not silent)
         vprint(f"[RequestInsertClassified] Run")
@@ -127,16 +140,17 @@ class PlaylistClassifier:
                 result = self.youtube.requestInsertPlaylistItem(playlist=playlist, video_ids=ids)
                 ispassed, passed, failed, ex = result
 
+                nvprint(f"[RequestInsertClassified] Insert : Playlist<{playlist}> {len(db)}->{len(failed)}")
                 if ispassed:
                     vprint(f"[RequestInsertClassified] Insert Success : Playlist<{playlist}>")
                     vprint(f"[RequestInsertClassified] Remove DB : {filepath}")
                     os.remove(filepath)
                 else:
-                    sprint(f"[RequestInsertClassified] Insert Fail : Playlist<{playlist}>")
-                    sprint(f"  ExceptionType: {type(ex)}")
-                    sprint(f"  Reason: {ex}")
-                    sprint(f"  PassCount : {len(passed)}")
-                    sprint(f"  FailCount : {len(failed)}")
+                    print(f"[RequestInsertClassified] Insert Fail : Playlist<{playlist}>")
+                    print(f"  ExceptionType: {type(ex)}")
+                    print(f"  Reason: {ex}")
+                    print(f"  PassCount : {len(passed)}")
+                    print(f"  FailCount : {len(failed)}")
 
                     remainDB = PlaylistDB()
                     for id in failed:
@@ -194,3 +208,20 @@ class PlaylistClassifier:
     def createDir(self, dir:str):
         if not os.path.exists(dir):
             os.makedirs(dir)
+
+    def isValidClassifiedDir(self, dir:str, verbose:bool = False, silent:bool = False):
+        re_csv = re.compile("(.*)[.]csv")
+        vprint = getcondprint(verbose)
+        sprint = getcondprint(not silent)
+        vprint(f"[isValidClassifiedDir] Run")
+
+        count = 0
+        for fname in os.listdir(dir):
+            filepath = f"{dir}/{fname}"
+            if m := re_csv.match(fname):
+                vprint(f"Found : {filepath}")
+                count += 1
+            else:
+                vprint(f"Found informmal file : {filepath}")
+        
+        return count > 0
