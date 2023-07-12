@@ -53,6 +53,13 @@ class YoutubeAPI:
             for i, item in enumerate(items):
                 yield self.__toItems(item, id=ids[i])
 
+    def requestDeletePlaylistItems(self, playlist):
+        res = self.youtube.playlistItems().delete(
+            id = playlist
+        ).execute()
+        
+
+
     def requestPlaylistItems(self, playlist:str, requestSize:int = 30):
         def request(nextPageToken=None):
             if nextPageToken is None:

@@ -6,16 +6,15 @@ from .Map import *
 from .youtube_api import *
 from .playlist_db import *
 
-CHANNEL_FILE: str = "data/channels.csv"
-
 def getcondprint(cond:bool):
     return lambda s : print(s) if cond else None
 
 class PlaylistClassifier:
     db_header = "title,channelTitle,duration,id,channelId".split(",")
     
-    def __init__(self, youtube = None):
+    def __init__(self, channelfile, youtube = None):
         self.youtube = youtube
+        self.channelfile = channelfile
         self.lastitem = {}
 
     def setAPI(self, youtube:YoutubeAPI):
@@ -23,7 +22,7 @@ class PlaylistClassifier:
         pass
 
     def requestPlaylistItems(self, playlist:str, exportfile:str, shared:dict = None):
-        map = Map(CHANNEL_FILE)
+        map = Map(self.channelfile)
 
         channelId: str = "None"
         channelTitle: str = "None"
@@ -112,7 +111,7 @@ class PlaylistClassifier:
         
         for path, db in classifieds.items():
             db.save(path)
-    
+
     def requestInsertClassified(self, importdir:str, silent:bool=False, verbose:bool=False):
         re_csv = re.compile("(.*)[.]csv")
         nvprint = getcondprint(not verbose)

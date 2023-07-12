@@ -18,7 +18,7 @@ class Map:
         self.data = {}
 
     def save(self):
-        with open(self.filename, "w", newline="") as file:
+        with open(self.filename, "w", newline="", encoding="utf-8") as file:
             writer = csv.writer(file)
             for key, value in self.data.items():
                 writer.writerow([key, value])
@@ -35,3 +35,5 @@ class Map:
     def __contains__(self, value):
         return value in self.data
 
+    def __iter__(self):
+        return iter(self.data.items())

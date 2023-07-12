@@ -31,6 +31,9 @@ class Filter:
         self.filtermap = {}
         self.playlists = {}
 
+    def hasChannelID(self, channelid):
+        pass
+
     def export(self, filename):
         map = Map(filename)
         for key, value in self.filtermap.items():
